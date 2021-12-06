@@ -1,8 +1,11 @@
-import { Bot, Context } from "grammy";
-import { addNewHabitRecord, displaySuccessMessage, promptForHabit } from "./service/add-habit";
-import { upsertGroupUser } from "./service/upsert-group-user";
-import { getTodayMessage } from "./service/get-today-message";
+import { Bot, Context, InlineKeyboard } from "grammy";
 import { config } from "./configs/app-config";
+import { selectIndividualChatHabits, selectSharedChatHabits } from "./repository/habit";
+import { selectCompletedHabitToday } from "./repository/tracker";
+import { addNewHabitRecord, displaySuccessMessage, promptForHabit } from "./service/add-habit";
+import { getTodayMessage } from "./service/get-today-message";
+import { upsertGroupUser } from "./service/upsert-group-user";
+import { extractGroupId, extractUserId } from "./utils/extract-ctx-data";
 
 
 const bot = new Bot(config.botKey) 
@@ -54,6 +57,58 @@ bot.command("today", async (ctx) => {
   ctx.reply(message, {parse_mode: "MarkdownV2"})
 });
 
+/* -------------------------------------------------------------------------- */
+/*                             Display User Habits                            */
+/* -------------------------------------------------------------------------- */
+
+bot.command("done", async (ctx) => {
+  const message = `Which habit did you complete?`
+
+  const { sharedHabits, individualHabits } = await getIncompleteUserChatHabits(ctx)
+
+  const inlineKeyboard = new InlineKeyboard()
+
+  sharedHabits?.forEach(habit => {
+    inlineKeyboard.text(`🔹${habit.name}`)
+  })
+
+  inlineKeyboard.row()
+
+  individualHabits?.forEach(habit => {
+    inlineKeyboard.text(`🔸${habit.name}`)
+  })
+
+
+  ctx.reply(message, {
+    reply_markup: inlineKeyboard,
+    parse_mode: "MarkdownV2",
+  });
+});
+
+const getIncompleteUserChatHabits = async (ctx: Context) => {
+  const userId = extractUserId(ctx)
+  const groupId = extractGroupId(ctx)
+
+  const userChatHabits = {
+    individualHabits: (await selectIndividualChatHabits(groupId, userId)).data,
+    sharedHabits: (await selectSharedChatHabits(groupId)).data
+  }
+
+  const completedUserHabitIds = await getCompletedUserHabitIds(userId)
+
+  const incompleteIndividualHabits = userChatHabits.individualHabits?.filter(habit => !completedUserHabitIds.includes(habit.id as number))
+  const incompleteSharedHabits = userChatHabits.sharedHabits?.filter(habit => !completedUserHabitIds.includes(habit.id as number))
+
+  return {
+    individualHabits: incompleteIndividualHabits,
+    sharedHabits: incompleteSharedHabits
+  }
+}
+
+const getCompletedUserHabitIds = async (userId: number) => {
+  const completedHTrackedHabits = (await selectCompletedHabitToday(userId)).data
+  return completedHTrackedHabits ? completedHTrackedHabits.map(trackedHabit => trackedHabit.habitId) : []
+}
 
 // Start your bot
 bot.start();

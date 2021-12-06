@@ -16,6 +16,7 @@ export enum HabitType {
 }
 
 export interface Habit {
+    id?: number
     name: string
     createdBy: number // userId
     groupId: number 
@@ -24,7 +25,7 @@ export interface Habit {
 
 export interface Tracker {
     createdAt: Date
-    habitId: string
+    habitId: number
 }
 
 export enum Table {

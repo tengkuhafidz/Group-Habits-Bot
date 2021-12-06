@@ -1,6 +1,7 @@
 import { Context, InlineKeyboard } from "grammy";
 import { insertHabit } from "../repository/habit";
 import { Habit, HabitType } from "../types";
+import { extractGroupId, extractUserId } from "../utils/extract-ctx-data";
 import { upsertGroupUser } from "./upsert-group-user";
 
 let newHabitName: string;
@@ -60,8 +61,8 @@ const promptHabitType = (ctx: any) => {
     {
       name: newHabitName,
       type: ctx.callbackQuery?.data as unknown as HabitType,
-      groupId: ctx.chat?.id as number,
-      createdBy: ctx.from?.id as number,
+      groupId: extractGroupId(ctx),
+      createdBy: extractUserId(ctx),
     }
   )
   
