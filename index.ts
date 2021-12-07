@@ -1,13 +1,9 @@
-import { Bot, Context, InlineKeyboard } from "grammy";
+import { Bot, Context } from "grammy";
 import { config } from "./configs/app-config";
-import { selectHabit, selectIndividualChatHabits, selectSharedChatHabits } from "./repository/habit";
-import { insertTrackedHabit, selectCompletedHabitToday } from "./repository/tracker";
 import { addNewHabitRecord, displaySuccessMessage, promptForHabit } from "./service/add-habit";
+import { checkOffHabit, displayHabitCompletedMessage, getIncompleteUserChatHabits } from "./service/done-habit";
 import { getTodayMessage } from "./service/get-today-message";
 import { upsertGroupUser } from "./service/upsert-group-user";
-import { TrackedHabit } from "./types";
-import { extractGroupId, extractUserId } from "./utils/extract-ctx-data";
-
 
 const bot = new Bot(config.botKey) 
 
@@ -66,19 +62,7 @@ bot.command("done", async (ctx) => {
   const message = `Which habit did you complete?`
 
   const { sharedHabits, individualHabits } = await getIncompleteUserChatHabits(ctx)
-
-  const inlineKeyboard = new InlineKeyboard()
-
-  sharedHabits?.forEach(habit => {
-    inlineKeyboard.text(`🔹${habit.name}`, habit.id?.toString())
-    inlineKeyboard.row()
-  })
-
-  individualHabits?.forEach(habit => {
-    inlineKeyboard.text(`🔸${habit.name}`, habit.id?.toString())
-    inlineKeyboard.row()
-  })
-
+  const inlineKeyboard = getInlineKeyboardWithHabitOptions(sharedHabits, individualHabits)
 
   ctx.reply(message, {
     reply_markup: inlineKeyboard,
@@ -86,57 +70,20 @@ bot.command("done", async (ctx) => {
   });
 });
 
-const getIncompleteUserChatHabits = async (ctx: Context) => {
-  const userId = extractUserId(ctx)
-  const groupId = extractGroupId(ctx)
 
-  const userChatHabits = {
-    individualHabits: (await selectIndividualChatHabits(groupId, userId)).data,
-    sharedHabits: (await selectSharedChatHabits(groupId)).data
-  }
-
-  const completedUserHabitIds = await getCompletedUserHabitIds(userId)
-
-  const incompleteIndividualHabits = userChatHabits.individualHabits?.filter(habit => !completedUserHabitIds.includes(habit.id as number))
-  const incompleteSharedHabits = userChatHabits.sharedHabits?.filter(habit => !completedUserHabitIds.includes(habit.id as number))
-
-  return {
-    individualHabits: incompleteIndividualHabits,
-    sharedHabits: incompleteSharedHabits
-  }
-}
-
-const getCompletedUserHabitIds = async (userId: number) => {
-  const completedHTrackedHabits = (await selectCompletedHabitToday(userId)).data
-  return completedHTrackedHabits ? completedHTrackedHabits.map(trackedHabit => trackedHabit.habitId) : []
-}
 
 bot.on("callback_query:data", async (ctx) => {
   const habitId = Number(ctx.callbackQuery.data)
-  const trackedHabit: TrackedHabit = {
-    habitId,
-    completedBy: extractUserId(ctx)
-  }
-  
-  await insertTrackedHabit(trackedHabit)
 
-  await displayHabitCompletedMessage(ctx, habitId);
+  await checkOffHabit(ctx, habitId)
+  await displayHabitCompletedMessage(ctx, habitId)
 
   ctx.reply(await getTodayMessage(ctx), {parse_mode: "MarkdownV2"})
 });
 
-const displayHabitCompletedMessage = async (ctx: any, habitId: number) => {
-  await ctx.answerCallbackQuery({
-    text: "Habit completed",
-  });
-  
-  const {name} = await selectHabit(habitId)
-
-  ctx.editMessageText(
-    `Well done on completing *${name}*\\!`,
-    { parse_mode: "MarkdownV2" }
-  );
-}
-
 // Start your bot
 bot.start();
+function getInlineKeyboardWithHabitOptions(sharedHabits: import("./types").Habit[] | undefined, individualHabits: import("./types").Habit[] | undefined): import("@grammyjs/types").InlineKeyboardMarkup | import("@grammyjs/types").ReplyKeyboardMarkup | import("@grammyjs/types").ReplyKeyboardRemove | import("@grammyjs/types").ForceReply | undefined {
+  throw new Error("Function not implemented.");
+}
+
