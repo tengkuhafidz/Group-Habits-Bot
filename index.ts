@@ -1,10 +1,11 @@
 import { Bot, Context, InlineKeyboard } from "grammy";
 import { config } from "./configs/app-config";
-import { selectIndividualChatHabits, selectSharedChatHabits } from "./repository/habit";
-import { selectCompletedHabitToday } from "./repository/tracker";
+import { selectHabit, selectIndividualChatHabits, selectSharedChatHabits } from "./repository/habit";
+import { insertTrackedHabit, selectCompletedHabitToday } from "./repository/tracker";
 import { addNewHabitRecord, displaySuccessMessage, promptForHabit } from "./service/add-habit";
 import { getTodayMessage } from "./service/get-today-message";
 import { upsertGroupUser } from "./service/upsert-group-user";
+import { TrackedHabit } from "./types";
 import { extractGroupId, extractUserId } from "./utils/extract-ctx-data";
 
 
@@ -69,13 +70,13 @@ bot.command("done", async (ctx) => {
   const inlineKeyboard = new InlineKeyboard()
 
   sharedHabits?.forEach(habit => {
-    inlineKeyboard.text(`🔹${habit.name}`)
+    inlineKeyboard.text(`🔹${habit.name}`, habit.id?.toString())
+    inlineKeyboard.row()
   })
 
-  inlineKeyboard.row()
-
   individualHabits?.forEach(habit => {
-    inlineKeyboard.text(`🔸${habit.name}`)
+    inlineKeyboard.text(`🔸${habit.name}`, habit.id?.toString())
+    inlineKeyboard.row()
   })
 
 
@@ -108,6 +109,33 @@ const getIncompleteUserChatHabits = async (ctx: Context) => {
 const getCompletedUserHabitIds = async (userId: number) => {
   const completedHTrackedHabits = (await selectCompletedHabitToday(userId)).data
   return completedHTrackedHabits ? completedHTrackedHabits.map(trackedHabit => trackedHabit.habitId) : []
+}
+
+bot.on("callback_query:data", async (ctx) => {
+  const habitId = Number(ctx.callbackQuery.data)
+  const trackedHabit: TrackedHabit = {
+    habitId,
+    completedBy: extractUserId(ctx)
+  }
+  
+  await insertTrackedHabit(trackedHabit)
+
+  await displayHabitCompletedMessage(ctx, habitId);
+
+  ctx.reply(await getTodayMessage(ctx), {parse_mode: "MarkdownV2"})
+});
+
+const displayHabitCompletedMessage = async (ctx: any, habitId: number) => {
+  await ctx.answerCallbackQuery({
+    text: "Habit completed",
+  });
+  
+  const {name} = await selectHabit(habitId)
+
+  ctx.editMessageText(
+    `Well done on completing *${name}*\\!`,
+    { parse_mode: "MarkdownV2" }
+  );
 }
 
 // Start your bot

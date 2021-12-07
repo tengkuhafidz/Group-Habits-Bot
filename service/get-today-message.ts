@@ -81,18 +81,14 @@ export const getChatHabits = async (groupId: number): Promise<ChatHabits> => {
   };
   
   const deriveOwnerLabel = async (ownerStr: string) => {
-    if(ownerStr === HabitType.Everyone) {
-      return `🔵${ownerStr}🔵`;
-    }
-
-    if(ownerStr === HabitType.Anyone) {
-      return `🟢${ownerStr}🟢`;
+    if(ownerStr === HabitType.Everyone || ownerStr === HabitType.Anyone) {
+      return `🔹${ownerStr}🔹`;
     }
 
     const users = (await selectUser(Number(ownerStr)))?.data as User[];
     const userName = users[0].name ?? users[0].username;
   
-    return `🟠${userName}🟠`;
+    return `🔸${userName}🔸`;
   }
 
   const getAllGroupUsers = async (groupId: number): Promise<User[]> => {

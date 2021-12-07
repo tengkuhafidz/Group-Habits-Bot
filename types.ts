@@ -23,9 +23,9 @@ export interface Habit {
     type: HabitType
 }
 
-export interface Tracker {
-    createdAt: Date
+export interface TrackedHabit {
     habitId: number
+    completedBy: number
 }
 
 export enum Table {

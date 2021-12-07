@@ -8,6 +8,16 @@ export const insertHabit = async (habit: Habit) => {
         .insert([habit])
 }
 
+export const selectHabit = async (habitId: number): Promise<Habit> => {
+    const {data, error}  = await supabase
+        .from(Table.Habit)
+        .select()
+        .eq('id', habitId)
+    
+    const habitResults = data as Habit[]
+    return habitResults[0]
+}
+
 export const selectChatHabits = async (groupId: number): Promise<PostgrestResponse<Habit>> => {
     return await supabase
         .from(Table.Habit)
